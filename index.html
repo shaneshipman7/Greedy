@@ -758,27 +758,41 @@ function cpuRoll(accumulated) {
   });
 }
 
-// CPU strategy: adaptive based on game state
+// CPU strategy: aggressive, adaptive, competitive
 function cpuDecide(turnAcc, cpuTotalScore) {
-  const needed = 10000 - cpuTotalScore;
+  const cpuProjected = cpuTotalScore + turnAcc;
   const playerAhead = playerTotal > cpuTotalScore;
+  const deficit = playerTotal - cpuTotalScore;
+  const needed = 10000 - cpuTotalScore;
 
-  // If this roll would win, always bank
-  if (cpuTotalScore + turnAcc >= 10000) return true;
+  // Always bank if this wins the game
+  if (cpuProjected >= 10000) return true;
 
-  // If player is close to winning, be aggressive
-  if (playerTotal >= 8000) {
-    return turnAcc >= 600; // risky — need big turns
+  // Player is about to win — go all-in, never bank below 1500
+  if (playerTotal >= 8500) {
+    return turnAcc >= 1500;
   }
 
-  // If CPU is far behind, take more risks
-  if (playerTotal - cpuTotalScore > 2000) {
-    return turnAcc >= 700;
+  // Player triggered final round (>= 10000) — desperate gamble
+  if (playerTotal >= 10000) {
+    return cpuProjected >= 10000; // only bank if we'd win
   }
 
-  // Normal play: bank around 300-500 range (varies a bit for personality)
-  const threshold = 350 + Math.floor(Math.random() * 200);
-  return turnAcc >= threshold;
+  // CPU is far behind (>3000 pts) — high-risk, high-reward play
+  if (deficit > 3000) {
+    return turnAcc >= 1200;
+  }
+
+  // CPU is moderately behind (>1500 pts) — keep rolling until meaningful haul
+  if (deficit > 1500) {
+    return turnAcc >= 900;
+  }
+
+  // Normal aggressive play — bank only when turn is genuinely valuable
+  // Add slight randomness so CPU isn't robotic (±100)
+  const baseThreshold = 700;
+  const jitter = Math.floor(Math.random() * 200) - 100;
+  return turnAcc >= baseThreshold + jitter;
 }
 
 function startPlayerTurn() {

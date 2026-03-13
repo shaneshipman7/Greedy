@@ -466,6 +466,101 @@
     padding: 14px 40px;
     font-size: 22px;
   }
+  /* Win Tracker */
+  .win-tracker {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-top: 12px;
+  }
+
+  .win-tracker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .win-tracker-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .btn-clear {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    line-height: 1;
+  }
+
+  .btn-clear:hover { color: var(--red); border-color: var(--red); }
+  .btn-clear:active { transform: scale(0.95); }
+
+  .win-bar-wrap {
+    margin-bottom: 10px;
+  }
+
+  .win-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .win-bar-player {
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    box-shadow: var(--glow-gold);
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .win-bar-cpu {
+    background: linear-gradient(90deg, #2a5a99, var(--blue));
+    box-shadow: var(--glow-blue);
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .win-counts {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--white);
+  }
+
+  .win-count-player, .win-count-cpu {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .win-count-total {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .win-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .player-dot { background: var(--gold); box-shadow: var(--glow-gold); }
+  .cpu-dot { background: var(--blue); box-shadow: var(--glow-blue); }
 </style>
 </head>
 <body>
@@ -473,7 +568,7 @@
 <div class="container">
   <div class="header">
     <h1>Greed</h1>
-    <div class="subtitle">Roll · Score · Bank · First to 10,000</div>
+    <div class="subtitle">Roll · Score · Bank · First to 5,000</div>
   </div>
 
   <div class="score-panel">
@@ -528,13 +623,37 @@
     <div class="rule-row"><span>Three of a kind (n)</span><span class="rule-pts">n × 100 pts</span></div>
     <div class="rule-row"><span>Bust (no scoring dice)</span><span class="rule-pts">lose turn</span></div>
   </div>
+
+  <div class="win-tracker">
+    <div class="win-tracker-header">
+      <div class="win-tracker-title">Win Record</div>
+      <button class="btn-clear" onclick="clearWins()">Clear</button>
+    </div>
+    <div class="win-bar-wrap">
+      <div class="win-bar" id="winBar">
+        <div class="win-bar-player" id="winBarPlayer" style="width:50%"></div>
+        <div class="win-bar-cpu" id="winBarCpu" style="width:50%"></div>
+      </div>
+    </div>
+    <div class="win-counts">
+      <div class="win-count-player">
+        <span class="win-dot player-dot"></span>
+        <span>You — <strong id="playerWinCount">0</strong></span>
+      </div>
+      <div class="win-count-total" id="winCountTotal">No games yet</div>
+      <div class="win-count-cpu">
+        <span>CPU — <strong id="cpuWinCount">0</strong></span>
+        <span class="win-dot cpu-dot"></span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Win Overlay -->
 <div class="win-overlay" id="winOverlay">
   <div class="win-box" id="winBox">
     <h2 id="winTitle">You Win!</h2>
-    <p id="winSubtitle">You reached 10,000 first</p>
+    <p id="winSubtitle">You reached 5,000 first</p>
     <div class="final-score" id="finalScore"></div>
     <button onclick="newGame()">Play Again</button>
   </div>
@@ -626,8 +745,8 @@ function updateUI() {
   document.getElementById('playerTotal').textContent = playerTotal.toLocaleString();
   document.getElementById('cpuTotal').textContent = cpuTotal.toLocaleString();
 
-  document.getElementById('playerProgress').style.width = Math.min((playerTotal/10000)*100, 100) + '%';
-  document.getElementById('cpuProgress').style.width = Math.min((cpuTotal/10000)*100, 100) + '%';
+  document.getElementById('playerProgress').style.width = Math.min((playerTotal/5000)*100, 100) + '%';
+  document.getElementById('cpuProgress').style.width = Math.min((cpuTotal/5000)*100, 100) + '%';
 
   const pCard = document.getElementById('playerCard');
   const cCard = document.getElementById('cpuCard');
@@ -680,8 +799,12 @@ function rollDice() {
     } else {
       turnScore += score;
       updateUI();
-      setMsg(`+${score.toLocaleString()} pts — Roll again or Bank`, 'score-msg');
-      setButtons(true, true, false);
+      const canBank = turnScore >= 500;
+      const bankLabel = turnScore < 500
+        ? `+${score.toLocaleString()} pts — Need ${(500 - turnScore).toLocaleString()} more to bank`
+        : `+${score.toLocaleString()} pts — Roll again or Bank`;
+      setMsg(bankLabel, 'score-msg');
+      setButtons(true, canBank, false);
     }
   });
 }
@@ -693,7 +816,7 @@ function bankPoints() {
   setButtons(false, false, false);
   updateUI();
 
-  if (playerTotal >= 10000) {
+  if (playerTotal >= 5000) {
     triggerWin(true);
     return;
   }
@@ -736,14 +859,14 @@ function cpuRoll(accumulated) {
       updateUI();
 
       // CPU decision: bank or roll again?
-      const shouldBank = cpuDecide(accumulated, cpuTotal);
+      const shouldBank = accumulated >= 500 && cpuDecide(accumulated, cpuTotal);
 
       if (shouldBank) {
         cpuTotal += accumulated;
         turnScore = 0;
         updateUI();
 
-        if (cpuTotal >= 10000) {
+        if (cpuTotal >= 5000) {
           triggerWin(false);
           return;
         }
@@ -761,38 +884,29 @@ function cpuRoll(accumulated) {
 // CPU strategy: aggressive, adaptive, competitive
 function cpuDecide(turnAcc, cpuTotalScore) {
   const cpuProjected = cpuTotalScore + turnAcc;
-  const playerAhead = playerTotal > cpuTotalScore;
   const deficit = playerTotal - cpuTotalScore;
-  const needed = 10000 - cpuTotalScore;
 
   // Always bank if this wins the game
-  if (cpuProjected >= 10000) return true;
+  if (cpuProjected >= 5000) return true;
 
-  // Player is about to win — go all-in, never bank below 1500
-  if (playerTotal >= 8500) {
-    return turnAcc >= 1500;
+  // Player is about to win — go all-in, never bank below 1000
+  if (playerTotal >= 4000) {
+    return turnAcc >= 1000;
   }
 
-  // Player triggered final round (>= 10000) — desperate gamble
-  if (playerTotal >= 10000) {
-    return cpuProjected >= 10000; // only bank if we'd win
-  }
-
-  // CPU is far behind (>3000 pts) — high-risk, high-reward play
-  if (deficit > 3000) {
-    return turnAcc >= 1200;
-  }
-
-  // CPU is moderately behind (>1500 pts) — keep rolling until meaningful haul
+  // CPU is far behind (>1500 pts) — high risk, high reward
   if (deficit > 1500) {
-    return turnAcc >= 900;
+    return turnAcc >= 800;
   }
 
-  // Normal aggressive play — bank only when turn is genuinely valuable
-  // Add slight randomness so CPU isn't robotic (±100)
-  const baseThreshold = 700;
-  const jitter = Math.floor(Math.random() * 200) - 100;
-  return turnAcc >= baseThreshold + jitter;
+  // CPU is moderately behind (>800 pts)
+  if (deficit > 800) {
+    return turnAcc >= 650;
+  }
+
+  // Normal aggressive play — bank only on solid turns (±75 jitter)
+  const jitter = Math.floor(Math.random() * 150) - 75;
+  return turnAcc >= 550 + jitter;
 }
 
 function startPlayerTurn() {
@@ -805,6 +919,47 @@ function startPlayerTurn() {
   document.getElementById('diceArea').className = 'dice-area';
 }
 
+// ── Win Record (persistent via storage API)
+let playerWins = 0;
+let cpuWins = 0;
+
+async function loadWins() {
+  try {
+    const result = await window.storage.get('greed-wins');
+    if (result) {
+      const data = JSON.parse(result.value);
+      playerWins = data.playerWins || 0;
+      cpuWins = data.cpuWins || 0;
+    }
+  } catch(e) { /* no saved data yet */ }
+  updateWinTracker();
+}
+
+async function saveWins() {
+  try {
+    await window.storage.set('greed-wins', JSON.stringify({ playerWins, cpuWins }));
+  } catch(e) {}
+}
+
+async function clearWins() {
+  playerWins = 0;
+  cpuWins = 0;
+  try { await window.storage.delete('greed-wins'); } catch(e) {}
+  updateWinTracker();
+}
+
+function updateWinTracker() {
+  const total = playerWins + cpuWins;
+  document.getElementById('playerWinCount').textContent = playerWins;
+  document.getElementById('cpuWinCount').textContent = cpuWins;
+  document.getElementById('winCountTotal').textContent = total === 0 ? 'No games yet' : `${total} game${total !== 1 ? 's' : ''}`;
+
+  const playerPct = total === 0 ? 50 : (playerWins / total) * 100;
+  const cpuPct = 100 - playerPct;
+  document.getElementById('winBarPlayer').style.width = playerPct + '%';
+  document.getElementById('winBarCpu').style.width = cpuPct + '%';
+}
+
 // ── Win
 function triggerWin(playerWon) {
   gameOver = true;
@@ -813,16 +968,20 @@ function triggerWin(playerWon) {
   overlay.classList.add('show');
 
   if (playerWon) {
+    playerWins++;
     box.classList.remove('cpu-wins');
     document.getElementById('winTitle').textContent = 'You Win!';
-    document.getElementById('winSubtitle').textContent = 'You reached 10,000 first';
+    document.getElementById('winSubtitle').textContent = 'You reached 5,000 first';
     document.getElementById('finalScore').textContent = playerTotal.toLocaleString() + ' pts';
   } else {
+    cpuWins++;
     box.classList.add('cpu-wins');
     document.getElementById('winTitle').textContent = 'CPU Wins!';
     document.getElementById('winSubtitle').textContent = 'Better luck next time';
     document.getElementById('finalScore').textContent = cpuTotal.toLocaleString() + ' pts';
   }
+  saveWins();
+  updateWinTracker();
 
   setButtons(false, false, false);
   document.getElementById('btnNew').style.display = 'none';
@@ -857,6 +1016,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('d' + i).innerHTML = diePips(i + 1);
   }
   updateUI();
+  loadWins();
 });
 </script>
 </body>
